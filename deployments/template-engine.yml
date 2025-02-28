@@ -1,0 +1,71 @@
+namespace:
+  name: {ENVIRONMENT}
+replicaCount: 1
+nameOverride: "{PROJECT_NAME}"
+fullnameOverride: "{PROJECT_NAME}"
+
+image:
+  repository: registry.cloud.mareana.com/{ENVIRONMENT}-{PROJECT_VERSION}/{PROJECT_NAME}
+  pullPolicy: Always
+  tag: latest
+
+imagePullSecrets:
+  - name: regcred
+
+serviceAccount:
+  create: true
+  annotations:
+    eks.amazonaws.com/role-arn: "arn:aws:iam::{S3_NODE}:role/S3TextractRole"
+
+service:
+  enabled: false
+
+resources:
+  limits:
+    cpu: 200m
+    memory: 1024Mi
+  requests:
+    cpu: 100m
+    memory: 1024Mi
+
+
+livenessProbe:
+  exec:
+    command:
+      - pgrep
+      - -f
+      - celery
+  initialDelaySeconds: 60
+  periodSeconds: 10
+  failureThreshold: 5
+
+readinessProbe:
+  exec:
+    command:
+      - pgrep
+      - -f
+      - celery
+  initialDelaySeconds: 60
+  periodSeconds: 10
+  failureThreshold: 5
+
+autoscaling:
+  enabled: false
+  
+ExternalConfigMaps:
+  - name: common-config
+
+configMaps:
+  default:
+    LOGS: "/var/log/template-engine/"
+    OPENAI_API_KEY: "sk-proj-YhprRw6KpoEJUIsL4iIIT3BlbkFJPgkpsas7rFXiYbYMaeR1"
+    PAGE_FUZZ_METHOD: "token_sort_ratio"
+    PAGE_FUZZ_THRESHOLD: "80"
+    BROKER_DSN: "sqs://"
+    SQS_QUEUE_PREFIX: "{ENVIRONMENT}"
+
+ExternalSecrets:
+  - name: common-secrets
+
+nodeSelector:
+  Name: {ENVIRONMENT}

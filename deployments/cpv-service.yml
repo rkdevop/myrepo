@@ -1,0 +1,99 @@
+namespace:
+  name: {ENVIRONMENT}
+replicaCount: 1
+nameOverride: "{PROJECT_NAME}"
+fullnameOverride: "{PROJECT_NAME}"
+
+image:
+  repository: registry.cloud.mareana.com/{ENVIRONMENT}-{PROJECT_VERSION}/{PROJECT_NAME}
+  pullPolicy: Always
+  tag: latest
+
+imagePullSecrets:
+  - name: regcred
+
+serviceAccount:
+  create: true
+  annotations:
+    eks.amazonaws.com/role-arn: "arn:aws:iam::{S3_NODE}:role/S3TextractRole"
+
+service:
+  port: 9090
+
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations: {}
+  hosts:
+    - host: {HOST}
+      paths:
+        - path: /services/v1/
+          pathType: Prefix
+
+resources:
+  limits:
+    cpu: 1000m
+    memory: 3Gi
+  requests:
+    cpu: 500m
+    memory: 2Gi
+
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 9090 # Use port 9090
+  initialDelaySeconds: 30 # Allow app time to start
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 5
+
+readinessProbe:
+  httpGet:
+    path: /health
+    port: 9090 # Ensure correct port
+  initialDelaySeconds: 25 # Delay check to prevent premature failures
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 5
+
+autoscaling:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: {MAX_REPLICAS}
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80
+
+ExternalConfigMaps:
+  - name: common-config
+
+configMaps:
+  default:
+    LOGS: "/var/log/cpv-service/"
+    API_VALIDATE_COLUMN_NAMES: "site:productno:batch_no:parameter:value:10.2.194.192_date:unit:approved"
+    VIEW_API_ENDPOINT: "https://{HOST}/services/v1/views"
+    CHART_API_ENDPOINT: "https://{HOST}/services/v1/chart-object-v2"
+    REGISTER_ENDPOINT: "https://{HOST}/auth/register"
+    PREPROCESSING_API_ENDPOINT: "https://{HOST}/services/v1/analysis-preprocessing"
+    JUPYTER_HUB_API_ENDPOINT: "https://{HOST}/jupyterhub/hub/api/users"
+    admin_token: "aec7d32df938c0f55e54f09244a350cb29ea612907ed4f07be13d9553d18a8e4"
+    JUPYTER_HUB_GET_USERS_ENDPOINT: "https://{HOST}/jupyterhub/hub/api/users"
+    PRINT_API: "https://{HOST}/services/v1/pdf-process"
+    max_length: "25"
+    AIRFLOW_DAG_API: "https://{HOST}/airflow/api/v1/dags/{dag_id}/dagRuns"
+    AIRFLOW_TASK_API: "https://{HOST}/airflow/api/v1/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances"
+    AIRFLOW_ADMIN_USER: "airflow"
+    GET_TOKEN_ADDRESS: "services/v1/getAToken"
+    LOGIN_REDIRECT_URL: "#/dashboard/redirect"
+    SIGNATURE_REDIRECT_URL: "#/dashboard/redirect_sign"
+    LOGOUT_REDIRECT_URL: "#/user/login"
+    SYSTEM_NAME: "MI DEV"
+    NOTIFICATION_API_ENDPOINT: "https://{HOST}/admin-services/v1/send-notification"
+    NEW_NOTIFICATION_API_ENDPOINT: "https://{HOST}/v1/notification/email/notify"
+    POSTGRES_SSLMODE: "disable"
+    SERVICE_NAME: "s3"
+
+ExternalSecrets:
+  - name: common-secrets
+
+nodeSelector:
+  Name: {ENVIRONMENT}

@@ -1,0 +1,75 @@
+namespace:
+  name: {ENVIRONMENT}
+replicaCount: 1
+nameOverride: "{PROJECT_NAME}"
+fullnameOverride: "{PROJECT_NAME}"
+ 
+image:
+  repository: registry.cloud.mareana.com/{ENVIRONMENT}-{PROJECT_VERSION}/{PROJECT_NAME}
+  pullPolicy: Always
+  tag: latest
+ 
+imagePullSecrets:
+  - name: regcred
+ 
+ 
+serviceAccount:
+  create: true
+  annotations:
+    eks.amazonaws.com/role-arn: 'arn:aws:iam::{S3_NODE}:role/S3TextractRole'
+
+service:
+  enabled: false
+
+resources:
+  limits:
+    cpu: 100m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 512Mi
+
+ 
+livenessProbe:
+  exec:
+    command: 
+      - pgrep
+      - -f
+      - celery
+  initialDelaySeconds: 30  
+  periodSeconds: 10
+  failureThreshold: 5
+
+readinessProbe:
+  exec:
+    command: 
+      - pgrep
+      - -f
+      - celery
+
+  initialDelaySeconds: 25  
+  periodSeconds: 10
+  failureThreshold: 5
+
+autoscaling:
+  enabled: false
+
+ExternalConfigMaps:
+  - name: common-config
+ 
+ 
+configMaps:
+  default:
+    BROKER_DSN: "sqs://"
+    SQS_QUEUE_PREFIX: "{ENVIRONMENT}"
+    CELERY_WORKER_NAME: "POST_EXECUTION_BGT"
+
+
+
+
+
+ExternalSecrets:
+  - name: common-secrets
+ 
+nodeSelector:
+  Name: {ENVIRONMENT}

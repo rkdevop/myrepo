@@ -1,0 +1,77 @@
+namespace:
+  name: {ENVIRONMENT}
+replicaCount: 1
+nameOverride: "{PROJECT_NAME}"
+fullnameOverride: "{PROJECT_NAME}"
+
+image:
+  repository: registry.cloud.mareana.com/{ENVIRONMENT}-{PROJECT_VERSION}/{PROJECT_NAME}
+  pullPolicy: Always
+  tag: latest
+
+imagePullSecrets:
+  - name: regcred
+
+serviceAccount:
+  create: true
+  annotations:
+    eks.amazonaws.com/role-arn: "arn:aws:iam::{S3_NODE}:role/S3TextractRole"
+
+service:
+  port: 9090
+
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations: {}
+  hosts:
+    - host: {HOST}
+      paths:
+        - path: /v1/genealogy-ai-service/
+          pathType: Prefix
+
+resources:
+  limits:
+    cpu: 1000m
+    memory: 1024Mi
+  requests:
+    cpu: 500m
+    memory: 1024Mi
+
+livenessProbe:
+  httpGet:
+    path: /v1/genealogy-ai-service/docs
+    port: 9090 # Use port 9090
+  initialDelaySeconds: 30 # Allow app time to start
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 5
+
+readinessProbe:
+  httpGet:
+    path: /v1/genealogy-ai-service/docs
+    port: 9090 # Ensure correct port
+  initialDelaySeconds: 25 # Delay check to prevent premature failures
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 5
+
+autoscaling:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: {MAX_REPLICAS}
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80
+
+ExternalConfigMaps:
+  - name: common-config
+
+configMaps:
+  default:
+    SERVICE_NAME: "genealogy-ai-service"
+
+ExternalSecrets:
+  - name: common-secrets
+
+nodeSelector:
+  Name: {ENVIRONMENT}

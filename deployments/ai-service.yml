@@ -1,0 +1,70 @@
+namespace:
+  name: mi-dev
+replicaCount: 1
+nameOverride: "ai-service"
+fullnameOverride: "ai-service"
+
+image:
+  repository: registry.cloud.mareana.com/mi-dev-5.1/ai-service
+  pullPolicy: Always
+  tag: latest
+
+imagePullSecrets:
+  - name: regcred
+
+serviceAccount:
+  create: true
+  annotations:
+    eks.amazonaws.com/role-arn: "arn:aws:iam::420464349284:role/S3TextractRole"
+
+service:
+  port: 9090
+
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations: {}
+  hosts:
+    - host: mi-dev.mareana.com
+      paths:
+        - path: /v1/ai-service
+          pathType: Prefix
+
+resources:
+  limits:
+    cpu: 300m
+    memory: 256Mi
+  requests:
+    cpu: 300m
+    memory: 256Mi
+
+livenessProbe:
+  httpGet:
+    path: /v1/ai-service/docs
+    port: 9090 # Use port 9090
+  initialDelaySeconds: 30 # Allow app time to start
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 5
+
+readinessProbe:
+  httpGet:
+    path: /v1/ai-service/docs
+    port: 9090 # Ensure correct port
+  initialDelaySeconds: 25 # Delay check to prevent premature failures
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 5
+
+ExternalConfigMaps:
+  - name: common-config
+
+configMaps:
+  default:
+    LOGS: "/var/log/fastapi/"
+
+ExternalSecrets:
+  - name: common-secrets
+
+nodeSelector:
+  Name: mi-dev

@@ -1,0 +1,77 @@
+namespace:
+  name: {ENVIRONMENT}
+
+replicaCount: 1
+
+nameOverride: "{PROJECT_NAME}"
+fullnameOverride: "{PROJECT_NAME}"
+
+image:
+  repository: registry.cloud.mareana.com/{ENVIRONMENT}-5.1/{PROJECT_NAME}
+  pullPolicy: Always
+  tag: latest
+
+imagePullSecrets:
+  - name: regcred
+
+serviceAccount:
+  create: true
+  annotations:
+    eks.amazonaws.com/role-arn: "arn:aws:iam::{S3_NODE}:role/S3TextractRole"
+
+service:
+  enabled: false
+
+resources:
+  limits:
+    cpu: 100m
+    memory: 1Gi
+  requests:
+    cpu: 100m
+    memory: 1Gi
+
+# Corrected Probes
+livenessProbe:
+  exec:
+    command:
+      - pgrep
+      - -f
+      - celery
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  failureThreshold: 5
+
+readinessProbe:
+  exec:
+    command:
+      - pgrep
+      - -f
+      - celery
+
+  initialDelaySeconds: 25
+  periodSeconds: 10
+  failureThreshold: 5
+  
+autoscaling:
+  enabled: false
+
+ExternalConfigMaps:
+  - name: common-config
+
+configMaps:
+  default:
+    SERVICE_NAME: "notification_engine"
+    MS_CLIENT_ID: "b21e514d-5bdc-4286-a69e-489a5d5322de"
+    MS_CLIENT_SECRET: "2bQ8Q~hqiwqFABQMyHU9_ZRnKTpLAGlAQTOySbnp"
+    MS_TENANT_ID: "d19e3014-dc30-4e35-ac09-4a8b08d2e688"
+    AWS_ACCESS_KEY_ID: ""
+    AWS_SECRET_ACCESS_KEY: ""
+    AWS_SESSION_TOKEN: ""
+    BROKER_DSN: "sqs://"
+    SQS_QUEUE_PREFIX: "{ENVIRONMENT}"
+
+ExternalSecrets:
+  - name: common-secrets
+
+nodeSelector:
+  Name: {ENVIRONMENT}

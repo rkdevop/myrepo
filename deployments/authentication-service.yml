@@ -1,0 +1,91 @@
+namespace:
+  name: {ENVIRONMENT}
+replicaCount: 1
+nameOverride: "{PROJECT_NAME}"
+fullnameOverride: "{PROJECT_NAME}"
+
+image:
+  repository: registry.cloud.mareana.com/{ENVIRONMENT}-{PROJECT_VERSION}/{PROJECT_NAME}
+  pullPolicy: Always
+  tag: latest
+
+imagePullSecrets:
+  - name: regcred
+
+serviceAccount:
+  create: true
+  annotations:
+    eks.amazonaws.com/role-arn: "arn:aws:iam::{S3_NODE}:role/S3TextractRole"
+
+service:
+  port: 9090
+
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations: {}
+  hosts:
+    - host: {HOST}
+      paths:
+        - path: /auth
+          pathType: Prefix
+
+resources:
+  limits:
+    cpu: 100m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 512Mi
+
+livenessProbe:
+  httpGet:
+    path: /health-check
+    port: 9090 # Use port 9090
+  initialDelaySeconds: 30 # Allow app time to start
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 5
+
+readinessProbe:
+  httpGet:
+    path: /health-check
+    port: 9090 # Ensure correct port
+  initialDelaySeconds: 25 # Delay check to prevent premature failures
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 5
+
+autoscaling:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: {MAX_REPLICAS}
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80
+
+ExternalConfigMaps:
+  - name: common-config
+
+configMaps:
+  default:
+    LOGS: "/var/log/authentication/"
+    LDSP_SERVER: "ldap-dev.mareana.com"
+    SERVER_PORT: "9090"
+    SGGROUP: "false"
+    SSO_DISP_NAME: "BMS IDP provider"
+    SSO_ENTITY_ID: "urn:bms:idp:dev:115"
+    SSO_URL: "https://sso-dev.bms.com/SSORedirect/metaAlias/BMS/urn:bms:idp:dev:115"
+    SLO_URL: "https://sso-dev.bms.com/IDPSloRedirect/metaAlias/BMS/urn:bms:idp:dev:115"
+    CLIENT_ID: "9e46806a-e50d-4df5-83cb-d25a658e2d5d"
+    CLIENT_SECRET: "0LC8Q~nU3Q9AUaQPfbXH-ePAbtnIOzIxHEgrvcG_"
+    AUTHORITY: "https://login.microsoftonline.com/d19e3014-dc30-4e35-ac09-4a8b08d2e688"
+    TENANT_ID: "d19e3014-dc30-4e35-ac09-4a8b08d2e688"
+    NOTIFICATION_API_ENDPOINT: "https://{HOST}/authentication-services/v1/send-notification"
+    NEW_NOTIFICATION_API_ENDPOINT: "https://{HOST}/v1/notification/email/notify"
+    MAX_INVALID_ATTEMPTS: "3"
+
+ExternalSecrets:
+  - name: common-secrets
+
+nodeSelector:
+  Name: {ENVIRONMENT}

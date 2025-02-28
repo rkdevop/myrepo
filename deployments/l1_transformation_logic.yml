@@ -1,0 +1,108 @@
+namespace:
+  name: {ENVIRONMENT}
+replicaCount: 1
+nameOverride: "{PROJECT_NAME}"
+fullnameOverride: "{PROJECT_NAME}"
+
+image:
+  repository: registry.cloud.mareana.com/{ENVIRONMENT}-{PROJECT_VERSION}/{PROJECT_NAME}
+  pullPolicy: Always
+  tag: latest
+
+imagePullSecrets:
+  - name: regcred
+
+serviceAccount:
+  create: true
+  annotations:
+    eks.amazonaws.com/role-arn: "arn:aws:iam::{S3_NODE}:role/S3TextractRole"
+
+service:
+  port: 9090
+
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations: {}
+  hosts:
+    - host: {HOST}
+      paths:
+        - path: /v2/airflow-tran-notebook
+          pathType: Prefix
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 200m
+    memory: 512Mi
+
+livenessProbe:
+  tcpSocket:
+    port: 9090
+  # httpGet:
+  #   path: /health
+    # port: 9090 # Use port 9090
+  initialDelaySeconds: 30 # Allow app time to start
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 5
+
+readinessProbe:
+  tcpSocket:
+    port: 9090
+  # httpGet:
+  #   path: /health
+  #   port: 9090 # Ensure correct port
+  initialDelaySeconds: 25 # Delay check to prevent premature failures
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 5
+
+autoscaling:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: {MAX_REPLICAS}
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80
+
+ExternalConfigMaps:
+  - name: common-config
+
+configMaps:
+  default:
+    INPUT_URL: 'jdbc:postgresql://DBENDPOINT:DBPORT/DBNAME'
+    OUTPUT_URL: 'jdbc:postgresql://DBENDPOINT:DBPORT/DBNAME'
+    DRIVER: 'org.postgresql.Driver'
+    INPUT_USERNAME: 'postgres'
+    INPUT_PASSWORD: 'DBPASSWORD'
+    OUTPUT_USERNAME: 'postgres'
+    OUTPUT_PASSWORD: 'DBPASSWORD'
+    SQLALCHEMY_INPUT: 'postgresql+psycopg2://postgres:DBPASSWORD@@DBENDPOINT:DBPORT/DBNAME?client_encoding=utf8'
+    SQLALCHEMY_OUTPUT: 'postgresql+psycopg2://postgres:DBPASSWORD@DBENDPOINT:DBPORT/DBNAME?client_encoding=utf8'
+    PSYCOPG_PARAMS: "host='DBENDPOINT' dbname=DBNAME user=postgres password='DBPASSWORD'"
+    NEO4J_URL: 'bolt://GRAPHDBENDPOINT:7687'
+    NEO4J_USERNAME: 'neo4j'
+    NEO4J_PASSWORD: 'Mareana@190'
+    GRAPHDB_API: 'http://graphdb-api:5000/v1/'
+    CHOWN_HOME: 'yes'
+    CHOWN_HOME_OPTS: -R
+    COMMON_URL: 'https://APPDNS'
+
+ExternalSecrets:
+  - name: common-secrets
+
+nodeSelector:
+  Name: {ENVIRONMENT}
+
+# volumes:
+#   - name: mysecret-volume
+#     secret:
+#       secretName: mysecret
+#       optional: false
+# volumeMounts:
+#   - name: mysecret-volume
+#     mountPath: "/etc/foo"  # Path where the secret data will be accessible inside the container
+#     readOnly: true
+

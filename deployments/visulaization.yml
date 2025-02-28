@@ -1,0 +1,98 @@
+namespace:
+  name: {ENVIRONMENT}
+replicaCount: 1
+nameOverride: "{PROJECT_NAME}"
+fullnameOverride: "{PROJECT_NAME}"
+
+image:
+  repository: registry.cloud.mareana.com/{ENVIRONMENT}-{PROJECT_VERSION}/{PROJECT_NAME}
+  pullPolicy: Always
+  tag: latest
+
+imagePullSecrets:
+  - name: regcred
+
+serviceAccount:
+  create: true
+  annotations:
+    eks.amazonaws.com/role-arn: "arn:aws:iam::{S3_NODE}:role/S3TextractRole"
+
+service:
+  port: 9090
+
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations: {}
+  hosts:
+    - host: {HOST}
+      paths:
+        - path: /visualization-service/v1
+
+          pathType: Prefix
+
+resources:
+  limits:
+    cpu: 100m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 512Mi
+
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 9090 # Use port 9090
+  initialDelaySeconds: 30 # Allow app time to start
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 5
+
+readinessProbe:
+  httpGet:
+    path: /health
+    port: 9090 # Ensure correct port
+  initialDelaySeconds: 25 # Delay check to prevent premature failures
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 5
+
+autoscaling:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: {MAX_REPLICAS}
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80
+
+startupProbe: # Add this if the app takes a long time to start
+  httpGet:
+    path: /health
+    port: 9090
+  initialDelaySeconds: 40
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 10
+
+ExternalConfigMaps:
+  - name: common-config
+
+configMaps:
+  default:
+    LOGS: "/var/log/visulaization/"
+    SYSTEM_NAME: "MI DEV"
+    LOGIN_REDIRECT_URL: "#/dashboard/redirect"
+    SIGNATURE_REDIRECT_URL: "#/dashboard/redirect_sign"
+    LOGOUT_REDIRECT_URL: "#/user/login"
+    API_VALIDATE_COLUMN_NAMES: "site:productno:batch_no:parameter:value:test_date:unit:approved"
+    PREPROCESSING_API_ENDPOINT: https://{HOST}/services/v1/analysis-preprocessing
+    REGISTER_ENDPOINT: https://{HOST}/auth/register
+    INFLUX_TOKEN: "YjWDMNTFHeABe0RiRGePFqMECy1EyMXk4EYmQrhBh5mQBCxSo_MpyxvUpizd9vu1AOgGBI-nP7TCy9iFknX0vA=="
+    ORG_NAME: "mi-org"
+    INFLUX_DB_URL: "http://influxdb:8086/"
+    PI_CONNECTOR_API_URL: "https://pi-connector-new-dev2.web-dev.bms.com/app"
+
+ExternalSecrets:
+  - name: common-secrets
+
+nodeSelector:
+  Name: {ENVIRONMENT}

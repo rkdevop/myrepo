@@ -1,0 +1,77 @@
+namespace:
+  name: {ENVIRONMENT}
+replicaCount: 1
+nameOverride: "{PROJECT_NAME}"
+fullnameOverride: "{PROJECT_NAME}"
+
+image:
+  repository: registry.cloud.mareana.com/{ENVIRONMENT}-{PROJECT_VERSION}/{PROJECT_NAME}
+  pullPolicy: Always
+  tag: latest
+
+imagePullSecrets:
+  - name: regcred
+
+serviceAccount:
+  create: true
+  annotations:
+    eks.amazonaws.com/role-arn: "arn:aws:iam::{S3_NODE}:role/S3TextractRole"
+
+service:
+  port: 80
+
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/secure-backends: "true"
+    nginx.ingress.kubernetes.io/enable-access-log: "false"
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "6000s"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "6000s"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "6000s"
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      add_header Content-Security-Policy "img-src * 'self' data: blob:; default-src 'self' 'unsafe-inline' 'unsafe-eval' *.googleapis.com *.google-analytics.com *.mareana.com *.jsdelivr.net *.gstatic.com *.helpdocsonline.com blob: data:; frame-src 'self' *.googleapis.com *.google-analytics.com https://*.mareana.com http://*.mareana.com *.jsdelivr.net *.gstatic.com *.helpdocsonline.com blob: data:; script-src-elem * 'unsafe-inline' blob: data:; worker-src * 'unsafe-inline' blob: data:;" always;
+      add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+  hosts:
+    - host: {HOST}
+      paths:
+        - path: /admin
+          pathType: Prefix
+
+resources:
+  limits:
+    cpu: 20m
+    memory: 50Mi
+  requests:
+    cpu: 20m
+    memory: 50Mi
+
+livenessProbe:
+  httpGet:
+    path: /
+    port: 80 # Use port 80
+  initialDelaySeconds: 30 # Allow app time to start
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 5
+
+readinessProbe:
+  httpGet:
+    path: /
+    port: 80 # Ensure correct port
+  initialDelaySeconds: 25 # Delay check to prevent premature failures
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 5
+
+autoscaling:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: {MAX_REPLICAS}
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80
+
+nodeSelector:
+  Name: {ENVIRONMENT}
